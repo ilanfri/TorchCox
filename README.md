@@ -1,6 +1,7 @@
+![status](https://github.com/ilanfri/TorchCox/workflows/CI/badge.svg "CI build status")
+
 # TorchCox
 
-https://github.com/ilanfri/TorchCox/workflows/CI/badge.svg
 
 A validated, reasonably fast, and easily extensible implementation of a Cox model in PyTorch.
 
