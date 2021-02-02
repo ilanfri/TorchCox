@@ -15,9 +15,11 @@ touch __init__.py
 cd ..
 
 mkdir tests
+mkdir data
+mkdir notebooks
 
 # FILL IN CORRECT VERSION NUMBER, AUTHOR, EMAIL, AND DESCRIPTION BELOW
-# Make sure to use 'data' and 'notebook' directories approapriately for each
+# Make sure to use 'data' and 'notebook' directories appropriately for each
 #  of those two, the below will automatically ignore those when creating package:
 # https://gitlab.com/vinktim/presentation-beyond-notebooks/-/blob/master/reference_demo_ds_project/setup.py
 

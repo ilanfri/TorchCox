@@ -8,6 +8,8 @@ from torch import nn
 from torch import optim
 import numpy as np
 
+torch.autograd.set_detect_anomaly(True)
+
 
 class TorchCox(BaseEstimator):
     """Fit a Cox model
@@ -18,26 +20,22 @@ class TorchCox(BaseEstimator):
         self.lr = lr
         
     def _padToMatch2d(self, inputtens, targetshape):
-        target = torch.zeros(*targetshape)
+        target = torch.full(targetshape, fill_value=-1e3)#torch.zeros(*targetshape)
         target[:inputtens.shape[0], :inputtens.shape[1]] = inputtens
         return target
         
     def get_loss(self, tensor, event_tens, num_tied, beta):
         loss_event = torch.einsum('ik,k->i', event_tens, beta)
-
-        atrisk_XB = torch.exp(torch.einsum('ijk,k->ij', tensor, beta)).clone()
-
-        #Padding zeroes in tensor will turn into 1s with the exp and then skew the sum if not turned into zeroes
-        atrisk_XB[atrisk_XB == 1] = 0
-    
-        loss_atrisk = -num_tied*torch.log(torch.sum(atrisk_XB, dim=1))
-
+                        
+        XB = torch.einsum('ijk,k->ij', tensor, beta)
+        loss_atrisk = -num_tied*torch.logsumexp(XB, dim=1)
+        
         loss = torch.sum(loss_event + loss_atrisk)
 
         return -loss
 
     # the arguments are ignored anyway, so we make them optional
-    def fit(self, df, Xnames=None, tname=None, dname=None):
+    def fit(self, df, Xnames=None, tname=None, dname=None, basehaz=True):
     
         self.Xnames = Xnames
         self.tname = tname
@@ -45,15 +43,15 @@ class TorchCox(BaseEstimator):
         
         #self.random_state_ = check_random_state(self.random_state)
         beta = nn.Parameter(torch.zeros(len(self.Xnames))).float()
+        
+        optimizer = optim.LBFGS([beta], lr=self.lr)
 
-        optimizer = optim.LBFGS([beta], lr=self.lr, max_iter=1e3)
+        inputdf = df[[self.tname,self.dname,*self.Xnames]].sort_values([self.dname,self.tname], ascending=[False,True])
 
-        self.inputdf = df[[self.tname,self.dname,*self.Xnames]].sort_values([self.dname,self.tname], ascending=[False,True])
-
-        tiecountdf = self.inputdf.loc[self.inputdf[self.dname]==1,:].groupby([self.tname]).size().reset_index(name='tiecount')
+        tiecountdf = inputdf.loc[inputdf[self.dname]==1,:].groupby([self.tname]).size().reset_index(name='tiecount')
         num_tied = torch.from_numpy(tiecountdf.tiecount.values).int()
 
-        tensin = torch.from_numpy(self.inputdf[[self.tname,self.dname,*self.Xnames]].values)
+        tensin = torch.from_numpy(inputdf[[self.tname,self.dname,*self.Xnames]].values)
 
         #Get unique event times
         tensin_events = torch.unique(tensin[tensin[:,1]==1, 0])
@@ -73,34 +71,32 @@ class TorchCox(BaseEstimator):
         def closure():
             optimizer.zero_grad()
             loss = self.get_loss(tensor, event_tens, num_tied, beta)
+            #print(loss)
             loss.backward()
             return loss
 
         optimizer.step(closure)
 
-        print(beta.detach().numpy())
-        #betas = beta.detach().numpy()
-        
         self.beta = beta
+        print(self.beta.detach().numpy())        
         
         
-    def basehaz(self):
-        """Compute the baseline hazard using the Breslow estimator for it."""
-    
-        t, _ = torch.sort(torch.from_numpy(self.inputdf[self.tname].values))
-        t_uniq = torch.unique(t)
+        #Compute baseline hazard during fit() to avoid having to save dataset to memory in TorchCox() objects, so it
+        #  can then later be calculated if basehaz() is called.
+        if basehaz:
+            t, _ = torch.sort(torch.from_numpy(inputdf[self.tname].values))
+            t_uniq = torch.unique(t)
 
-        h0 = []
-        for time in t_uniq:
-            value = 1/torch.sum(torch.exp(torch.einsum('ij,j->i', torch.from_numpy(self.inputdf.loc[self.inputdf[self.tname] >= time.numpy(), self.Xnames].values).float(), self.beta)))
-            h0.append({'time':time.numpy(), 'h0':value.detach().numpy()})
-        
-        h0df = pd.DataFrame(h0)
-        h0df['H0'] = h0df.h0.cumsum()
-        
-        self.basehaz = h0df
+            h0 = []
+            for time in t_uniq:
+                value = 1/torch.sum(torch.exp(torch.einsum('ij,j->i', torch.from_numpy(inputdf.loc[inputdf[self.tname] >= time.numpy(), self.Xnames].values).float(), self.beta)))
+                h0.append({'time':time.numpy(), 'h0':value.detach().numpy()})
 
-        return self.basehaz
+            h0df = pd.DataFrame(h0)
+            h0df['H0'] = h0df.h0.cumsum()
+
+            self.basehaz = h0df
+
         
     def predict_proba(self, testdf, Xnames=None, tname=None):
         
@@ -117,5 +113,3 @@ class TorchCox(BaseEstimator):
         #assert all(F<=1)
         
         return S
-
-
