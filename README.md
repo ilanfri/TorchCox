@@ -40,21 +40,21 @@ The way this was done was using what, for the sake of having a name to refer to 
 
 The regression coefficients of this code have been validated against a closed-form solution on a simple synthetic dataset, and against the [R survival package](https://stat.ethz.ch/R-manual/R-devel/library/survival/html/00Index.html) which is a standard tool of the trade.  
 
-The resulting unit test is in the `tests/test_TorchCox.py` which the user can run anytime by runing `pytest` from bash from within the package directory, and which is run automatically as part of the Continuous Integration anytime I push changes to this GitHub repository, resulting in the 'CI passing' badge above, which indicates the package both installs properly (with Python 3.8) and also the comparison against the closed-form result matches to 5 decimal places.
+The resulting unit test is in the `tests/test_TorchCox.py` file, which the user can run anytime by runing `pytest` from bash from within the package directory. This unit test is also run automatically as part of the Continuous Integration anytime I push changes to this GitHub repository, resulting in the 'CI passing' badge above, which indicates the package both installs properly (with Python 3.8) and also the comparison against the closed-form result matches to 5 decimal places.
 
 
 
-## Motivation: Advantages of mplementing classic statistical models in a Differentiable Programming language
+## Motivation: Advantages of implementing classic statistical models in a Differentiable Programming language
 
-Blazingly fast and reliable implementations with a lot more functionality (like the R package `survival`) already exist, why would anyone bother implementing this in a Differentiable Programming language like PyTorch? Some reasons are:
+Blazingly fast and reliable implementations with a lot more functionality (like the R package `survival`) already exist, so why would anyone bother implementing this in a Differentiable Programming language like PyTorch? Some reasons are:
 
 - Extensibility: changes to loss function or optimisation algorithm are often one-line changes
 - Scalability: functionality to deploy across multiple CPUs or GPUs is often built in or easy to include
 - Mobile deployment: if relevant, models can be deployed on mobile devices (Android or iOS)
-- Automatic differentiation: computing confidence intervals originally involved computing second derivatives by hand and implementing the result in the code, with differentiable programming simply changing the loss is sufficient, the computation of second derivatives is automatic (provided loss is twice-differentiable, obviously)
+- Automatic differentiation: computing confidence intervals originally involved computing second derivatives by hand and implementing the result in the code, with differentiable programming simply changing the loss is sufficient, the computation of second derivatives should be automatic (provided loss is twice-differentiable, obviously)
 - Ecosystem: integration with existing PyTorch libraries (see https://pytorch.org/ecosystem/) to add all sorts of functionality should be straightforward 
 
-Taking a few minutes to go through the notebook at `notebooks/How_it_works.ipynb` should hopefully convince you of the ease and power this framework can bring.
+Taking a few minutes to go through the notebook at `notebooks/How_it_works.ipynb` should hopefully convince you of the ease and power of this framework.
 
 
 
